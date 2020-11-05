@@ -59,6 +59,7 @@ static OSStatus mixerRenderCallback(void *inRefCon, AudioUnitRenderActionFlags *
     if (!self.playing) {
         return;
     }
+    self.playing = YES;
     NSLog(@"stop");
     switch (self.type) {
         case LearningAudioTypeAudioUnit: {
@@ -83,6 +84,9 @@ static OSStatus mixerRenderCallback(void *inRefCon, AudioUnitRenderActionFlags *
             if (controller->ioDataBuffer != NULL) {
                 free(controller->ioDataBuffer);
             }
+            
+            AudioFileClose(audioFileID);
+            AudioConverterDispose(audioConverter);
         }
             break;
             
@@ -312,7 +316,6 @@ static OSStatus mixerRenderCallback(void *inRefCon, AudioUnitRenderActionFlags *
     bufferList->mBuffers[0].mData = malloc(byteSize);
     OSStatus status = AudioConverterFillComplexBuffer(controller->audioConverter, inInputDataProc, inRefCon, &inNumberFrames, bufferList, NULL);
     CheckStatusReturnResult((int)status, @"AudioConverterFillComplexBuffer", noErr);
-    
     NSLog(@"out size: %u", (unsigned int)bufferList->mBuffers[0].mDataByteSize);
     
     if (controller->bufferList->mBuffers[0].mDataByteSize <= 0) {
