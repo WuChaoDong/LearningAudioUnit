@@ -196,15 +196,6 @@ static OSStatus mixerRenderCallback(void *inRefCon, AudioUnitRenderActionFlags *
     status = AudioComponentInstanceNew(component, &mixerUnit);
     CheckStatus((int)status, @"AudioComponentInstanceNew");
     
-    UInt32 mixerUnitElementCount = 2;
-    UInt32 mixerUnitSize = sizeof(UInt32);
-    status = AudioUnitSetProperty(mixerUnit, kAudioUnitProperty_ElementCount, kAudioUnitScope_Input, 0, &mixerUnitElementCount, sizeof(UInt32)); // fourth parameter always use 0 here
-    CheckStatus((int)status, @"kAudioUnitProperty_ElementCount");
-    
-    status = AudioUnitGetProperty(mixerUnit, kAudioUnitProperty_ElementCount, kAudioUnitScope_Input, MIXER_UNIT_INPUT_ELEMENT0, &mixerUnitElementCount, &mixerUnitSize);
-    CheckStatus((int)status, @"kAudioUnitProperty_ElementCount");
-    NSLog(@"mixUnit elementCount = %u", (unsigned int)mixerUnitElementCount); // no effect after set element count
-    
     AURenderCallbackStruct renderCallbackStruct;
     renderCallbackStruct.inputProc = mixerRenderCallback;
     renderCallbackStruct.inputProcRefCon = (__bridge void *)self;

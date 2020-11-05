@@ -111,8 +111,10 @@ static OSStatus mixerRenderCallback(void *inRefCon, AudioUnitRenderActionFlags *
                 if (objectContainer->ioDataBuffer != NULL) {
                     free(objectContainer->ioDataBuffer);
                 }
+                
+                AudioFileClose(objectContainer->audioFileID);
+                AudioConverterDispose(objectContainer->audioConverter);
             }
-
         }
             break;
             
@@ -121,6 +123,7 @@ static OSStatus mixerRenderCallback(void *inRefCon, AudioUnitRenderActionFlags *
     }
     if (self.fileHandle) {
         [self.fileHandle closeFile];
+        self.fileHandle = nil;
     }
 }
 
@@ -200,8 +203,8 @@ static OSStatus mixerRenderCallback(void *inRefCon, AudioUnitRenderActionFlags *
     status = AudioUnitSetProperty(ioUnit, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Input, IO_UNIT_INPUT_ELEMENT, &one, sizeof(one));
     CheckStatus((int)status, @"kAudioOutputUnitProperty_EnableIO");
 
-//    status = AudioUnitSetProperty(ioUnit, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Output, IO_UNIT_OUTPUT_ELEMENT, &one, sizeof(one));
-//    CheckStatus((int)status, @"kAudioOutputUnitProperty_EnableIO");
+    status = AudioUnitSetProperty(ioUnit, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Output, IO_UNIT_OUTPUT_ELEMENT, &one, sizeof(one));
+    CheckStatus((int)status, @"kAudioOutputUnitProperty_EnableIO");
     
 //    status = AudioUnitSetProperty(ioUnit, kAudioOutputUnitProperty_EnableIO, kAudioUnitScope_Input, IO_UNIT_OUTPUT_ELEMENT, &one, sizeof(one));
 //    CheckStatus((int)status, @"kAudioOutputUnitProperty_EnableIO");
@@ -318,7 +321,11 @@ static OSStatus mixerRenderCallback(void *inRefCon, AudioUnitRenderActionFlags *
 
 - (void)writePCMData:(Byte *)buffer size:(int)size {
     if (!self.fileHandle) {
-        self.fileHandle = [NSFileHandle fileHandleForWritingAtPath:[NSTemporaryDirectory() stringByAppendingPathComponent:@"record.pcm"]];
+        NSString *path = [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingPathComponent:@"record.pcm"];
+        if ([[NSFileManager defaultManager] fileExistsAtPath:path]) {
+            [[NSFileManager defaultManager] removeItemAtPath:path error:NULL];
+        }
+        self.fileHandle = [NSFileHandle fileHandleForWritingAtPath:path];
         [self.fileHandle truncateFileAtOffset:0];
     }
     [self.fileHandle writeData:[NSData dataWithBytes:buffer length:size]];
@@ -377,9 +384,8 @@ static OSStatus RecordCallback(void *inRefCon, AudioUnitRenderActionFlags *ioAct
     OSStatus status = AudioUnitRender(controller->ioUnit, ioActionFlags, inTimeStamp, inBusNumber, inNumberFrames, controller->bufferList);
     CheckStatusReturnResult((int)status, @"AudioConverterFillComplexBuffer", noErr);
     
-    NSLog(@"RecordCallback size = %d", controller->bufferList->mBuffers[0].mDataByteSize);
+    NSLog(@"RecordCallback size = %u", (unsigned int)controller->bufferList->mBuffers[0].mDataByteSize);
     [controller writePCMData:controller->bufferList->mBuffers[0].mData size:controller->bufferList->mBuffers[0].mDataByteSize];
-    
     return noErr;
 }
 
@@ -443,7 +449,7 @@ static OSStatus mixerRenderCallback(void *inRefCon, AudioUnitRenderActionFlags *
 
  NSString* mixedAudio = @"mixed_audio.m4a";
 
- NSString *exportPath = [NSTemporaryDirectory() stringByAppendingString:mixedAudio];
+ NSString *exportPath = [[NSSearchPathForDirectoriesInDomains(NSDocumentDirectory, NSUserDomainMask, YES) firstObject] stringByAppendingString:mixedAudio];
  NSURL *exportURL = [NSURL fileURLWithPath:exportPath];
 
  if ([[NSFileManager defaultManager] fileExistsAtPath:exportPath]) {
